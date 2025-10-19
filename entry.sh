@@ -5,46 +5,30 @@ function updateConfigValue() {
   sed -i "s/\(^$1 *= *\).*/\1${2//&/\\&}/" $server_ini
 }
 
-# Ensure User and Group IDs
-if [ ! "$(id -u pzombie)" -eq "$UID" ]; then usermod -o -u "$UID" pzombie ; fi
-if [ ! "$(id -g pzombie)" -eq "$GID" ]; then groupmod -o -g "$GID" pzombie ; fi
-
-# Install SteamCMD
-if [ ! -f /home/steam/steamcmd.sh ]
-then
-  echo "Downloading SteamCMD..."
-  mkdir -p /home/steam/
-  cd /home/steam/
-  curl -sqL "https://steamcdn-a.akamaihd.net/client/installer/steamcmd_linux.tar.gz" | tar zxvf -
-fi
-
-# Update pzserver
-echo "Updating Project Zomboid..."
-if [ "$SERVER_BRANCH" == "" ]
-then
-  su root -s /bin/sh -p -c "/home/steam/steamcmd.sh +force_install_dir /data/server-file +login anonymous +app_update 380870 +quit"
-else
-  su root -s /bin/sh -p -c "/home/steam/steamcmd.sh +force_install_dir /data/server-file +login anonymous +app_update 380870 -beta ${SERVER_BRANCH} +quit"
-fi
-
-if [ -n "${FORCESTEAMCLIENTSOUPDATE}" ]; then
-  echo "FORCESTEAMCLIENTSOUPDATE variable is set, updating steamclient.so in Zomboid's server"
-  cp "/home/steam/linux64/steamclient.so" "/data/server-file/linux64/steamclient.so"
-  cp "/home/steam/linux32/steamclient.so" "/data/server-file/steamclient.so"
-fi
-
-
-# Permissions
-chown -R pzombie:pzombie /home/steam
-chown -R pzombie:pzombie /data/server-file
-
 # Symlink
 echo "Creating symlink for config folder..."
 if [ ! -d /data/config ]
 then
   mkdir -p /data/config
 fi
-su pzombie -s /bin/sh -p -c "ln -s /data/config /home/pzombie/Zomboid"
+ln -s /data/config /root/Zomboid
+
+# Update pzserver
+echo "Updating Project Zomboid..."
+if [ "$SERVER_BRANCH" == "" ]
+then
+  steamcmd +force_install_dir /data/server-file +login anonymous +app_update 380870 +quit
+else
+  steamcmd +force_install_dir /data/server-file +login anonymous +app_update 380870 -beta ${SERVER_BRANCH} +quit
+fi
+
+if [ -n "${FORCESTEAMCLIENTSOUPDATE}" ]; then
+  echo "FORCESTEAMCLIENTSOUPDATE variable is set, updating steamclient.so in Zomboid's server"
+  cp "/root/.steam/sdk64/steamclient.so" "/data/server-file/linux64/steamclient.so"
+  cp "/root/.steam/sdk32/steamclient.so" "/data/server-file/steamclient.so"
+fi
+
+
 
 # Apply server connfiguration
 server_ini="/data/config/Server/${SERVER_NAME}.ini"
@@ -80,9 +64,8 @@ else
   updateConfigValue "WorkshopItems" "${MOD_WORKSHOP_IDS}"
 fi
 
-chown -R pzombie:pzombie /data/config/
-
 # Copy default spawn locations file to server config folder
+mkdir -p /data/config/${SERVER_NAME^}
 if [ ! -f /data/config/${SERVER_NAME^}/server_spawnregions.lua ]
 then
   cp /data/server_spawnregions.lua /data/config/${SERVER_NAME^}/server_spawnregions.lua
@@ -91,4 +74,4 @@ fi
 # Start server
 echo "Launching server..."
 cd /data/server-file
-su pzombie -s /bin/sh -p -c "./start-server.sh -servername ${SERVER_NAME} -adminpassword ${SERVER_ADMIN_PASSWORD}"
+./start-server.sh -servername ${SERVER_NAME} -adminpassword ${SERVER_ADMIN_PASSWORD} -Ddebug -debug

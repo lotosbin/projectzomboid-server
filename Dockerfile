@@ -1,4 +1,12 @@
-FROM ubuntu:22.04
+FROM steamcmd/steamcmd:ubuntu-24
+
+# Local
+RUN apt update && apt install -y locales && locale-gen en_US.UTF-8 \
+&& update-locale LANG=en_US.UTF-8 LC_ALL=en_US.UTF-8 \
+&& . /etc/default/locale && locale
+
+# Vim
+RUN apt update && apt install -y vim
 
 # Env var
 ENV SERVER_NAME="server" \
@@ -14,22 +22,7 @@ ENV SERVER_NAME="server" \
     MOD_NAMES="" \
     MOD_WORKSHOP_IDS="" \
     RCON_PORT="27015" \
-    RCON_PASSWORD="" \
-	UID="1000" \
-	GID="1000"
-
-# Install dependencies
-RUN apt-get update && \
-    apt-get install --no-install-recommends -y \
-        lib32gcc-s1 \
-        curl \
-        default-jre \
-    && apt-get clean autoclean \
-    && apt-get autoremove -y \
-    && rm -rf /var/lib/apt/lists/*
-
-# Add User
-RUN useradd -u ${UID} -U -m -s /bin/false pzombie && usermod -G users pzombie
+    RCON_PASSWORD=""
 
 # Expose ports
 EXPOSE $SERVER_PORT/udp
@@ -41,5 +34,12 @@ VOLUME ["/data/server-file", "/data/config"]
 # Add default spawn locations
 COPY server_spawnregions.lua /data/server_spawnregions.lua
 
+#清除已有的ENTRYPOINT
+ENTRYPOINT []
 COPY entry.sh /data/scripts/entry.sh
 CMD ["bash", "/data/scripts/entry.sh"]
+
+# install screen
+RUN apt update && apt install -y --no-install-recommends \
+  screen \
+  && apt clean && rm -rf /var/lib/apt/lists/*
